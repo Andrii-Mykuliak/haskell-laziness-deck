@@ -3,7 +3,6 @@ import { interpolate } from "remotion";
 import { C, F } from "../deck/theme";
 import { mix, POP, SlideDef, useSteps } from "../deck/steps";
 import { At, HaskellLogo, Slide } from "../deck/ui";
-import { useClock } from "./common";
 
 const TitleSlide: React.FC = () => {
   const { s, t } = useSteps();
@@ -60,97 +59,187 @@ const TitleSlide: React.FC = () => {
   );
 };
 
-/* Epigraph: a tape of thunks that a consumer forces one cell at a time, forever. */
-const TAPE_STEP = 0.42;
-const CELL = 88;
-const CELL_GAP = 12;
-const PITCH = CELL + CELL_GAP;
-const TAPE_X0 = 112;
-const TAPE_STOP = 1420;
+/* Epigraph: Hughes's own example. A generator and a selector are separate modules; laziness glues them,
+   the selector demands values one at a time and the generator stops when the selector is satisfied. */
+const APPROX = (() => {
+  const out = [1];
+  for (let i = 0; i < 4; i++) out.push((out[i] + 2 / out[i]) / 2);
+  return out;
+})();
+const SHOWN = ["1", "1.5", "1.4166667", "1.4142157", "1.4142136"];
+const DIFFS = ["", "0.5", "0.0833333", "0.0024510", "0.0000021"];
+const DEMAND_AT = (k: number) => 30 + k * 36;
+const PULSE = 12;
+const TRAVEL = 18;
+const ARRIVE = (k: number) => DEMAND_AT(k) + PULSE + TRAVEL;
+const STOP_AT = ARRIVE(APPROX.length - 1) + 4;
 
-const DemandTape: React.FC<{ sec: number; p: number }> = ({ sec, p }) => {
-  const pos = sec / TAPE_STEP;
-  const idx = Math.floor(pos);
-  const frac = pos - idx;
-  const eased = frac < 0.5 ? 2 * frac * frac : 1 - Math.pow(-2 * frac + 2, 2) / 2;
-  const headW = (idx + eased) * PITCH;
-  const cam = Math.max(0, headW - (TAPE_STOP - TAPE_X0));
-  const first = Math.max(0, Math.floor(cam / PITCH) - 1);
-  const last = first + Math.ceil(1920 / PITCH) + 3;
-  const cells: React.ReactNode[] = [];
-  for (let i = first; i <= last; i++) {
-    const forced = i < idx || (i === idx && frac > 0.55);
-    cells.push(
+const BOX = { y: 430, h: 236, w: 560 };
+const GEN_X = 112;
+const SEL_X = 1920 - 112 - BOX.w;
+const PIPE = { x0: GEN_X + BOX.w + 20, x1: SEL_X - 20, y: BOX.y + BOX.h / 2 };
+
+const ModuleBox: React.FC<{ x: number; p: number; color: string; glow?: number; children: React.ReactNode }> = ({ x, p, color, glow = 0, children }) => (
+  <div
+    style={{
+      position: "absolute",
+      left: x,
+      top: BOX.y,
+      width: BOX.w,
+      height: BOX.h,
+      borderRadius: 18,
+      background: C.panel,
+      border: `3px solid ${color}`,
+      boxSizing: "border-box",
+      padding: "26px 32px",
+      opacity: Math.min(1, p),
+      transform: `translateY(${(1 - p) * 24}px)`,
+      boxShadow: glow > 0.02 ? `0 0 ${34 * glow}px ${color}` : undefined,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const ModuleLabel: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => (
+  <div style={{ fontFamily: F.body, fontWeight: 800, fontSize: 30, color, letterSpacing: 1 }}>{children}</div>
+);
+
+const ModuleCode: React.FC<{ size?: number; color?: string; children: React.ReactNode }> = ({ size = 40, color = C.mint, children }) => (
+  <div style={{ marginTop: 14, fontFamily: F.mono, fontWeight: 700, fontSize: size, color, whiteSpace: "pre", fontVariantLigatures: "none" }}>
+    {children}
+  </div>
+);
+
+const GeneratorSelector: React.FC = () => {
+  const { s, lin, t } = useSteps();
+  const f = t(0);
+  const done = f >= STOP_AT;
+  const arrived = APPROX.map((_, k) => f >= ARRIVE(k)).lastIndexOf(true);
+  const genGlow = APPROX.reduce((g, _, k) => Math.max(g, lin(0, DEMAND_AT(k) + PULSE - 2, 4) * (1 - lin(0, DEMAND_AT(k) + PULSE + 6, 8))), 0);
+  const selGlow = done ? s(0, STOP_AT) * (1 - 0.6 * s(0, STOP_AT + 20)) : 0;
+  const pipe = s(0, 14);
+  const tokenW = (k: number) => SHOWN[k].length * 18 + 36;
+  const status = done ? `≤ 0.001  →  ${SHOWN[4]}` : arrived < 0 ? "чекає значень" : arrived === 0 ? `a = ${SHOWN[0]}` : `|a - b| = ${DIFFS[arrived]}`;
+  return (
+    <>
+      <ModuleBox x={GEN_X} p={s(0, 2, POP)} color={done ? C.line : C.lav} glow={genGlow}>
+        <ModuleLabel color={C.lav}>генератор</ModuleLabel>
+        <ModuleCode>{"iterate (next 2) 1"}</ModuleCode>
+        <ModuleCode size={26} color={C.dim}>
+          {"next n x = (x + n / x) / 2"}
+        </ModuleCode>
+      </ModuleBox>
+      <ModuleBox x={SEL_X} p={s(0, 8, POP)} color={done ? C.mint : C.amber} glow={selGlow}>
+        <ModuleLabel color={done ? C.mint : C.amber}>селектор</ModuleLabel>
+        <ModuleCode>{"within 0.001"}</ModuleCode>
+        <ModuleCode size={30} color={done ? C.mint : C.amber}>
+          {status}
+        </ModuleCode>
+      </ModuleBox>
+
+      <svg width={1920} height={1080} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
+        <line x1={PIPE.x0} y1={PIPE.y - 34} x2={PIPE.x0 + (PIPE.x1 - PIPE.x0) * pipe} y2={PIPE.y - 34} stroke={C.line} strokeWidth={3} />
+        <line x1={PIPE.x0} y1={PIPE.y + 34} x2={PIPE.x0 + (PIPE.x1 - PIPE.x0) * pipe} y2={PIPE.y + 34} stroke={C.line} strokeWidth={3} />
+        {APPROX.map((_, k) => {
+          const p = lin(0, DEMAND_AT(k), PULSE);
+          if (p <= 0 || p >= 1) return null;
+          const x = PIPE.x1 - (PIPE.x1 - PIPE.x0) * p;
+          return <circle key={k} cx={x} cy={PIPE.y} r={12} fill={C.amber} style={{ filter: "drop-shadow(0 0 8px rgba(242,193,125,0.9))" }} />;
+        })}
+      </svg>
+
+      {APPROX.map((_, k) => {
+        const p = lin(0, DEMAND_AT(k) + PULSE, TRAVEL);
+        if (p <= 0) return null;
+        const w = tokenW(k);
+        const eased = 1 - Math.pow(1 - p, 3);
+        const x = PIPE.x0 + 8 + (PIPE.x1 - PIPE.x0 - w - 16) * eased;
+        const fade = 1 - lin(0, ARRIVE(k) + 2, 8);
+        return (
+          <div
+            key={k}
+            style={{
+              position: "absolute",
+              left: x,
+              top: PIPE.y - 26,
+              width: w,
+              height: 52,
+              borderRadius: 26,
+              border: `3px solid ${C.mint}`,
+              background: "rgba(134,224,168,0.16)",
+              color: C.mint,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: F.mono,
+              fontWeight: 700,
+              fontSize: 30,
+              boxSizing: "border-box",
+              opacity: Math.min(1, p * 4) * fade,
+            }}
+          >
+            {SHOWN[k]}
+          </div>
+        );
+      })}
+
       <div
-        key={i}
         style={{
           position: "absolute",
-          left: TAPE_X0 + i * PITCH - cam,
-          top: 10,
-          width: CELL,
-          height: 64,
-          borderRadius: 14,
-          border: `3px ${forced ? "solid" : "dashed"} ${forced ? C.mint : C.faint}`,
-          background: forced ? "rgba(134,224,168,0.18)" : "transparent",
-          color: forced ? C.mint : C.faint,
+          left: PIPE.x0 + 8,
+          top: PIPE.y - 26,
+          width: 90,
+          height: 52,
+          borderRadius: 26,
+          border: `3px dashed ${C.faint}`,
+          color: C.faint,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontFamily: F.mono,
           fontWeight: 700,
-          fontSize: 24,
+          fontSize: 30,
           boxSizing: "border-box",
+          opacity: s(0, STOP_AT + 10),
         }}
       >
-        {forced ? (i + 1) * (i + 1) : "?"}
-      </div>,
-    );
-  }
-  return (
-    <>
-      <div
-        style={{
-          position: "absolute",
-          left: TAPE_X0,
-          top: 92,
-          fontFamily: F.mono,
-          fontWeight: 600,
-          fontSize: 32,
-          color: C.dim,
-          whiteSpace: "pre",
-          fontVariantLigatures: "none",
-          opacity: Math.min(1, p),
-        }}
-      >
-        {"take n (map (^2) [1 ..])    "}
-        <span style={{ color: C.amber }}>{`n = ${idx + 1}`}</span>
+        ?
       </div>
       <div
         style={{
           position: "absolute",
-          left: 0,
-          top: 140,
-          width: 1920,
-          height: 84,
-          opacity: Math.min(1, p),
-          maskImage: "linear-gradient(90deg, transparent 0px, transparent 70px, black 230px, black 1600px, transparent 1900px)",
-          WebkitMaskImage: "linear-gradient(90deg, transparent 0px, transparent 70px, black 230px, black 1600px, transparent 1900px)",
+          left: PIPE.x0,
+          width: PIPE.x1 - PIPE.x0,
+          top: PIPE.y - 84,
+          textAlign: "center",
+          fontFamily: F.body,
+          fontSize: 27,
+          color: done ? C.text : C.dim,
+          opacity: pipe,
         }}
       >
-        {cells}
-        <div
-          style={{
-            position: "absolute",
-            left: TAPE_X0 + headW - cam - 7,
-            top: 3,
-            width: CELL + 14,
-            height: 78,
-            borderRadius: 18,
-            border: `4px solid ${C.amber}`,
-            boxShadow: "0 0 22px rgba(242,193,125,0.6)",
-            boxSizing: "border-box",
-          }}
-        />
+        {done ? "решта послідовності не обчислюється" : "лінивий потік: значення лише на запит"}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: PIPE.x0,
+          width: PIPE.x1 - PIPE.x0,
+          top: PIPE.y + 48,
+          textAlign: "center",
+          fontFamily: F.mono,
+          fontWeight: 600,
+          fontSize: 24,
+          whiteSpace: "pre",
+          fontVariantLigatures: "none",
+          opacity: s(0, 20),
+        }}
+      >
+        <span style={{ color: C.amber }}>within 0.001</span>
+        <span style={{ color: C.dim }}>{" ("}</span>
+        <span style={{ color: C.lav }}>iterate (next 2) 1</span>
+        <span style={{ color: C.dim }}>)</span>
       </div>
     </>
   );
@@ -158,7 +247,6 @@ const DemandTape: React.FC<{ sec: number; p: number }> = ({ sec, p }) => {
 
 const QuoteSlide: React.FC = () => {
   const { s } = useSteps();
-  const sec = useClock();
   const words = (str: string, base: number, color?: string) =>
     str.split(" ").map((w, i) => {
       const p = s(0, base + i * 5, POP);
@@ -170,8 +258,8 @@ const QuoteSlide: React.FC = () => {
     });
   return (
     <Slide>
-        <DemandTape sec={sec} p={s(0, 0, POP)} />
-        <div style={{ position: "absolute", left: 110, top: 300, width: 1700, fontFamily: F.head, fontWeight: 800, fontSize: 66, lineHeight: 1.22, color: C.text }}>
+        <GeneratorSelector />
+        <div style={{ position: "absolute", left: 110, top: 110, width: 1700, fontFamily: F.head, fontWeight: 800, fontSize: 66, lineHeight: 1.22, color: C.text }}>
           <div>
             {words("Lazy evaluation", 8, C.accentHi)}
             {words("is perhaps the most powerful", 18)}
@@ -183,20 +271,20 @@ const QuoteSlide: React.FC = () => {
           style={{
             position: "absolute",
             left: 116,
-            top: 580,
+            top: 720,
             height: 6,
             width: mix(0, 420, s(1, 0)),
             background: `linear-gradient(90deg, ${C.accent}, ${C.pink})`,
             borderRadius: 3,
           }}
         />
-        <At x={110} y={620} w={1600} step={1} delay={6} size={46} weight={600} color={C.text}>
+        <At x={110} y={750} w={1700} step={1} delay={6} size={44} weight={600} color={C.text}>
           Ліниві обчислення – мабуть, найпотужніший інструмент модуляризації в арсеналі функційного програміста.
         </At>
-        <At x={110} y={810} step={1} delay={24} size={34} weight={400} color={C.dim} font={F.mono}>
+        <At x={110} y={900} step={1} delay={24} size={34} weight={400} color={C.dim} font={F.mono}>
           John Hughes
         </At>
-        <At x={110} y={864} w={1600} step={1} delay={36} size={30} weight={400} color={C.dim}>
+        <At x={110} y={950} w={1600} step={1} delay={36} size={30} weight={400} color={C.dim}>
           «Why Functional Programming Matters», 1989
         </At>
     </Slide>
@@ -281,7 +369,7 @@ const Agenda: React.FC<{ active?: number }> = ({ active }) => {
 
 export const introSlides: SlideDef[] = [
   { id: "title", title: "Титул", steps: [100], C: TitleSlide },
-  { id: "quote", title: "Епіграф", steps: [150, 120], C: QuoteSlide },
+  { id: "quote", title: "Епіграф", steps: [STOP_AT + 50, 120], C: QuoteSlide },
   { id: "agenda", title: "План", steps: [60], C: () => <Agenda /> },
 ];
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { C } from "../deck/theme";
+import { C, F } from "../deck/theme";
 import { POP, SlideDef, useSteps } from "../deck/steps";
 import { Code } from "../deck/Code";
 import { A, Arrow, At, Lead, M, Mark, Slide } from "../deck/ui";
@@ -33,12 +33,43 @@ const S05: React.FC = () => (
     <At x={1020} y={520} w={820} step={3} delay={14} size={38}>
       Конкретна операція над елементом стає <A>параметром-функцією</A>.
     </At>
-    <Code x={96} y={700} size={42} step={4} code={`incrementAll = mapR (+ 1)`} />
-    <At x={96} y={860} w={1720} step={4} delay={16} size={40}>
+    <Code x={96} y={690} size={42} step={4} code={`incrementAll = mapR (+ 1)`} />
+    <At x={1020} y={690} w={820} step={4} delay={16} size={36}>
       Так рекурсивна схема перетворюється на <A>функційну абстракцію</A>.
     </At>
+    <DefinitionCard />
   </Slide>
 );
+
+const DefinitionCard: React.FC = () => {
+  const { s } = useSteps();
+  const p = s(5, 0, POP);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 96,
+        top: 822,
+        width: 1728,
+        borderRadius: 20,
+        background: C.panel,
+        border: `3px solid ${C.accent}`,
+        boxShadow: `0 0 ${30 * Math.min(1, p)}px rgba(141,118,220,0.35)`,
+        padding: "22px 34px",
+        boxSizing: "border-box",
+        opacity: Math.min(1, p),
+        transform: `translateY(${(1 - p) * 30}px)`,
+      }}
+    >
+      <div style={{ fontFamily: F.body, fontSize: 34, fontWeight: 700, lineHeight: 1.35, color: C.text }}>
+        <A>Функційна абстракція</A> відокремлює загальну структуру обчислення від конкретної дії, яка змінюється в окремому випадку.
+      </div>
+      <div style={{ marginTop: 10, fontFamily: F.body, fontSize: 30, lineHeight: 1.35, color: C.dim, opacity: Math.min(1, s(5, 14)) }}>
+        Тут структура – рекурсивний обхід списку в <M>mapR</M>, а конкретна дія – параметр <M c={C.amber}>f</M>.
+      </div>
+    </div>
+  );
+};
 
 /* 6 · Типові функційні перетворення */
 const BULLETS: React.ReactNode[] = [
@@ -197,10 +228,16 @@ const S08: React.FC = () => {
       <Lead>
         Функційні абстракції мають властивості, які дозволяють міркувати про <A>еквівалентність</A> програм.
       </Lead>
-      <Code x={96} y={330} size={52} step={1} code={`map id = id`} />
-      <Code x={900} y={340} size={40} step={1} delay={14} code={`map id [1,2,3] = [1,2,3]`} />
-      <Mark ok step={1} delay={30} x={1500} y={338} />
-      <Code x={96} y={450} size={52} step={2} code={`map (f . g) = map f . map g`} />
+      <Code x={96} y={322} size={52} step={1} code={`map id = id`} />
+      <At x={700} y={318} w={1130} step={1} delay={14} size={30} weight={600}>
+        застосувати <M>id</M> до кожного елемента – нічого не змінити:
+      </At>
+      <Code x={700} y={364} size={30} step={1} delay={24} code={`map id [1,2,3] = [1,2,3]`} />
+      <Mark ok step={1} delay={36} x={1160} y={360} size={44} />
+      <Code x={96} y={448} size={52} step={2} code={`map (f . g) = map f . map g`} />
+      <At x={990} y={440} w={840} step={2} delay={14} size={30} weight={600}>
+        один прохід функцією <M>f . g</M> дає той самий список, що й два проходи: спочатку <M>map g</M>, потім <M>map f</M>
+      </At>
       <RowLabel x={96} y={546} h={44} p={s(3, 0)}>
         {"f = (+1),  g = (*2)"}
       </RowLabel>
@@ -229,17 +266,84 @@ const S08: React.FC = () => {
         два проходи, той самий результат
       </At>
 
-      <At x={96} y={920} w={1720} step={4} size={38}>
-        Ці рівності показують, що перетворення списку узгоджується з <A>композицією функцій</A>.
+      <At x={96} y={900} w={1720} step={4} size={38}>
+        Ці рівності показують, що перетворення списку узгоджується з <A>композицією функцій</A>: два проходи можна замінити одним, не
+        змінивши результату.
       </At>
     </Slide>
   );
 };
 
+/* 8b · Доведення закону композиції */
+const DEFS = `
+  map _ []     = []               -- (1)
+  map h (x:xs) = h x : map h xs   -- (2)
+  (f . g) x    = f (g x)          -- (3)
+`;
+
+const S08P: React.FC = () => (
+  <Slide title="Звідки береться ця рівність">
+    <Lead>
+      Дві функції рівні, якщо для <A>будь-якого</A> списку дають однаковий результат. Доводимо структурною індукцією за списком – так
+      само, як у лекції 5.
+    </Lead>
+    <At x={96} y={330} step={1} size={30} weight={600} color={C.dim}>
+      Використовуємо означення:
+    </At>
+    <Code x={96} y={378} size={30} step={1} delay={8} code={DEFS} />
+    <At x={96} y={560} step={2} size={34} weight={700} color={C.amber}>
+      База: список []
+    </At>
+    <Code
+      x={96}
+      y={612}
+      size={30}
+      step={2}
+      delay={10}
+      stagger={10}
+      code={`
+        map (f . g) []
+        = []                   -- (1)
+        = map f []             -- (1)
+        = map f (map g [])     -- (1)
+      `}
+    />
+    <At x={900} y={330} step={3} size={34} weight={700} color={C.lav}>
+      Крок: список x : rest
+    </At>
+    <At x={900} y={382} w={940} step={3} delay={8} size={28} weight={400} color={C.dim}>
+      припущення: <M>map (f . g) rest = map f (map g rest)</M>
+    </At>
+    <Code
+      x={900}
+      y={440}
+      size={30}
+      step={3}
+      delay={20}
+      stagger={14}
+      code={`
+        map (f . g) (x : rest)
+        = (f . g) x : map (f . g) rest   -- (2)
+        = f (g x) : map (f . g) rest     -- (3)
+        = f (g x) : [[3@60|map f (map g rest)]]   -- припущення
+        = map f (g x : map g rest)       -- (2)
+        = map f (map g (x : rest))       -- (2)
+      `}
+    />
+    <At x={96} y={860} w={1720} step={4} size={36}>
+      Обидва випадки збігаються, отже <M>map (f . g) xs = (map f . map g) xs</M> для кожного скінченного списку <M>xs</M>.
+    </At>
+    <At x={96} y={960} w={1720} step={4} delay={20} size={30} weight={400} color={C.dim}>
+      Так само доводиться <M>map id = id</M>: крок <M>map id (x : rest) = id x : map id rest = x : rest</M>.
+    </At>
+  </Slide>
+);
+
 export const a2Slides: SlideDef[] = [
-  { id: "rec-to-map", title: "Від рекурсії до map", steps: [40, 50, 50, 60, 70], C: S05 },
+  { id: "rec-to-map", title: "Від рекурсії до map", steps: [40, 50, 50, 60, 60, 80], C: S05 },
   { id: "transforms", title: "Типові перетворення", steps: [60, 50, 50, 50], C: S06 },
   { id: "examples", title: "map, filter, zipWith", steps: [30, 90, 110, 90, 55], C: S07 },
-  { id: "map-laws", title: "Властивості map", steps: [40, 55, 55, 140, 55], C: S08 },
+  { id: "map-laws", title: "Властивості map", steps: [40, 60, 60, 140, 60], C: S08 },
+  { id: "map-laws-proof", title: "Доведення закону композиції", steps: [50, 50, 70, 130, 70], C: S08P },
 ];
 
