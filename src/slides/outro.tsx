@@ -196,9 +196,23 @@ const Outro: React.FC = () => {
       />
       <At x={96} y={640} step={0} delay={44} dir="left" pop>
         <Chip size={34} color={done ? C.mint : C.amber} border={done ? C.mint : C.amber}>
-          {done ? "решта – за потребою" : `take ${n + 1} fibs`}
+          {`take ${n + 1} fibs`}
         </Chip>
       </At>
+      <div
+        style={{
+          position: "absolute",
+          left: 96,
+          top: 730,
+          fontFamily: F.body,
+          fontSize: 30,
+          color: C.dim,
+          opacity: s(0, DONE_AT),
+          transform: `translateY(${(1 - s(0, DONE_AT)) * 12}px)`,
+        }}
+      >
+        {`останній елемент ${FIB[K - 1]}, решта – за потребою`}
+      </div>
 
       <div style={{ position: "absolute", left: 96, top: 900, opacity: credit, transform: `translateY(${(1 - credit) * 16}px)` }}>
         <span

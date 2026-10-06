@@ -68,11 +68,12 @@ const APPROX = (() => {
 })();
 const SHOWN = ["1", "1.5", "1.4166667", "1.4142157", "1.4142136"];
 const DIFFS = ["", "0.5", "0.0833333", "0.0024510", "0.0000021"];
-const DEMAND_AT = (k: number) => 30 + k * 36;
-const PULSE = 12;
-const TRAVEL = 18;
+const PACE = 2;
+const DEMAND_AT = (k: number) => 30 + k * 36 * PACE;
+const PULSE = 12 * PACE;
+const TRAVEL = 18 * PACE;
 const ARRIVE = (k: number) => DEMAND_AT(k) + PULSE + TRAVEL;
-const STOP_AT = ARRIVE(APPROX.length - 1) + 4;
+const STOP_AT = ARRIVE(APPROX.length - 1) + 4 * PACE;
 
 const BOX = { y: 430, h: 236, w: 560 };
 const GEN_X = 112;
@@ -116,8 +117,8 @@ const GeneratorSelector: React.FC = () => {
   const f = t(0);
   const done = f >= STOP_AT;
   const arrived = APPROX.map((_, k) => f >= ARRIVE(k)).lastIndexOf(true);
-  const genGlow = APPROX.reduce((g, _, k) => Math.max(g, lin(0, DEMAND_AT(k) + PULSE - 2, 4) * (1 - lin(0, DEMAND_AT(k) + PULSE + 6, 8))), 0);
-  const selGlow = done ? s(0, STOP_AT) * (1 - 0.6 * s(0, STOP_AT + 20)) : 0;
+  const genGlow = APPROX.reduce((g, _, k) => Math.max(g, lin(0, DEMAND_AT(k) + PULSE - 2 * PACE, 4 * PACE) * (1 - lin(0, DEMAND_AT(k) + PULSE + 6 * PACE, 8 * PACE))), 0);
+  const selGlow = done ? s(0, STOP_AT) * (1 - 0.6 * s(0, STOP_AT + 20 * PACE)) : 0;
   const pipe = s(0, 14);
   const tokenW = (k: number) => SHOWN[k].length * 18 + 36;
   const status = done ? `≤ 0.001  →  ${SHOWN[4]}` : arrived < 0 ? "чекає значень" : arrived === 0 ? `a = ${SHOWN[0]}` : `|a - b| = ${DIFFS[arrived]}`;
@@ -155,7 +156,7 @@ const GeneratorSelector: React.FC = () => {
         const w = tokenW(k);
         const eased = 1 - Math.pow(1 - p, 3);
         const x = PIPE.x0 + 8 + (PIPE.x1 - PIPE.x0 - w - 16) * eased;
-        const fade = 1 - lin(0, ARRIVE(k) + 2, 8);
+        const fade = 1 - lin(0, ARRIVE(k) + 2 * PACE, 8 * PACE);
         return (
           <div
             key={k}
@@ -201,7 +202,7 @@ const GeneratorSelector: React.FC = () => {
           fontWeight: 700,
           fontSize: 30,
           boxSizing: "border-box",
-          opacity: s(0, STOP_AT + 10),
+          opacity: s(0, STOP_AT + 10 * PACE),
         }}
       >
         ?
