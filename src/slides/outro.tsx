@@ -7,10 +7,11 @@ import { At, Chip } from "../deck/ui";
 
 /* Final slide: fibs is forced one element at a time; every new element adds a square to the Fibonacci spiral. */
 
-const K = 12;
-const SQ_START = 24;
-const SQ_STEP = 15;
-const SQ_DUR = 14;
+const SLOW = 1.5;
+const K = 18;
+const SQ_START = 24 * SLOW;
+const SQ_STEP = 15 * SLOW;
+const SQ_DUR = 14 * SLOW;
 const DONE_AT = SQ_START + (K - 1) * SQ_STEP + SQ_DUR;
 const VIEW = { x: 930, y: 70, w: 920, h: 940 };
 
@@ -49,7 +50,7 @@ const SQUARES: Sq[] = (() => {
   return out;
 })();
 
-const COLORS = ["#5e5086", "#6f5fa5", "#8d76dc", "#a994ff", "#b25fa8", "#c26cae", "#f38bbf", "#f59e72", "#f2c17d", "#86e0a8", "#6fd0c0", "#2474e2"];
+const COLORS = ["#5e5086", "#6f5fa5", "#8d76dc", "#a994ff", "#b25fa8", "#c26cae", "#f38bbf", "#f59e72", "#f2c17d", "#86e0a8", "#6fd0c0", "#2474e2", "#5e8ef0", "#8d76dc", "#b25fa8", "#f38bbf", "#f2c17d", "#86e0a8"];
 
 const rnd = (n: number) => {
   const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
@@ -91,9 +92,9 @@ const Outro: React.FC = () => {
   const X = (x: number) => VIEW.x + VIEW.w / 2 + (x - mx) * scale;
   const Y = (y: number) => VIEW.y + VIEW.h / 2 - (y - my) * scale;
   const done = f >= DONE_AT;
-  const glow = interpolate(f, [DONE_AT, DONE_AT + 40], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const credit = s(0, DONE_AT + 30);
-  const sweep = interpolate(f, [DONE_AT + 40, DONE_AT + 90], [-30, 130], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const glow = interpolate(f, [DONE_AT, DONE_AT + 40 * SLOW], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const credit = s(0, DONE_AT + 30 * SLOW);
+  const sweep = interpolate(f, [DONE_AT + 40 * SLOW, DONE_AT + 90 * SLOW], [-30, 130], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   const letters = (str: string, base: number) =>
     str.split("").map((ch, i) => {
@@ -147,7 +148,7 @@ const Outro: React.FC = () => {
         })}
         <g style={{ filter: `drop-shadow(0 0 ${12 * glow}px rgba(242,193,125,0.85))` }}>
           {SQUARES.map((q, i) => {
-            const p = clamp01((f - (SQ_START + i * SQ_STEP + 4)) / SQ_DUR);
+            const p = clamp01((f - (SQ_START + i * SQ_STEP + 4 * SLOW)) / SQ_DUR);
             if (p <= 0) return null;
             const r = q.s * scale;
             const len = (Math.PI / 2) * r;
@@ -219,4 +220,4 @@ const Outro: React.FC = () => {
   );
 };
 
-export const outroSlide: SlideDef = { id: "thanks", title: "Дякую за увагу", steps: [DONE_AT + 140], C: Outro };
+export const outroSlide: SlideDef = { id: "thanks", title: "Дякую за увагу", steps: [Math.ceil(DONE_AT + 140 * SLOW)], C: Outro };
