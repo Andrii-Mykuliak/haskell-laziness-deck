@@ -303,45 +303,46 @@ const AGENDA = [
 const Agenda: React.FC<{ active?: number }> = ({ active }) => {
   const { s } = useSteps();
   const full = active === undefined;
-  const Y0 = 220;
+  const Y0 = 206;
   const GAP = 118;
+  const hl = full ? 0 : s(0, 6);
   return (
     <Slide title="План">
-      {!full && (
-        <div
-          style={{
-            position: "absolute",
-            left: 84,
-            top: Y0 + active! * GAP - 14,
-            width: mix(0, 1740, s(0, 6)),
-            height: 92,
-            borderRadius: 14,
-            background: "rgba(141,118,220,0.13)",
-            border: `2px solid rgba(141,118,220,${0.5 * s(0, 6)})`,
-          }}
-        />
-      )}
       {AGENDA.map((item, i) => {
         const p = full ? s(0, 8 + i * 5, POP) : 1;
         const on = full ? 1 : i === active ? s(0, 10) : 0;
         const dim = full ? 1 : i === active ? 1 : 0.35;
-        const y = Y0 + i * GAP;
+        const isActive = !full && i === active;
         return (
           <div
             key={i}
             style={{
               position: "absolute",
-              left: 104,
-              top: y,
+              left: 84,
+              top: Y0 + i * GAP,
               display: "flex",
               alignItems: "center",
-              gap: 36,
+              gap: 34,
+              padding: "12px 34px 12px 20px",
               opacity: p * dim,
-              transform: `translateX(${(1 - p) * -40 + on * 24}px)`,
+              transform: `translateX(${(1 - p) * -40}px)`,
             }}
           >
+            {isActive && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: 14,
+                  background: "rgba(141,118,220,0.13)",
+                  border: `2px solid rgba(141,118,220,${0.5 * hl})`,
+                  clipPath: `inset(0 ${(1 - hl) * 100}% 0 0 round 14px)`,
+                }}
+              />
+            )}
             <div
               style={{
+                position: "relative",
                 width: 76,
                 height: 64,
                 borderRadius: 8,
@@ -353,13 +354,16 @@ const Agenda: React.FC<{ active?: number }> = ({ active }) => {
                 fontWeight: 800,
                 fontSize: 40,
                 color: C.text,
+                flexShrink: 0,
                 boxShadow: on ? `0 0 ${30 * on}px rgba(178,95,168,${0.6 * on})` : undefined,
                 transform: `scale(${1 + 0.12 * on})`,
               }}
             >
               {i + 1}
             </div>
-            <div style={{ fontFamily: F.body, fontSize: 54, fontWeight: on ? 700 : 400, color: C.text }}>{item}</div>
+            <div style={{ position: "relative", fontFamily: F.body, fontSize: 48, fontWeight: on ? 700 : 400, color: C.text, whiteSpace: "nowrap" }}>
+              {item}
+            </div>
           </div>
         );
       })}
