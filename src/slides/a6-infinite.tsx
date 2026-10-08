@@ -303,7 +303,7 @@ const S19: React.FC = () => {
   );
 };
 
-/* 20 · Завершуваність і продуктивність */
+/* 20 · Завершуваність і породжуваність */
 const useSince = (active: boolean) => {
   const sec = useClock();
   const start = useRef<number | null>(null);
@@ -323,15 +323,16 @@ const S20: React.FC = () => {
   const spin = run * 360;
   const fill = lin(2, 24, 60);
   const k = Math.round(fill * 100);
-  const head = (num: number, t: string) => (
+  const head = (num: number, t: string, note?: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
       <Num n={num} />
       <div style={{ fontFamily: F.head, fontWeight: 600, fontSize: 42 }}>{t}</div>
+      {note && <div style={{ fontFamily: F.body, fontSize: 24, color: C.dim }}>{note}</div>}
     </div>
   );
   const q = (t: string) => <div style={{ marginTop: 26, fontFamily: F.body, fontSize: 31, lineHeight: 1.4 }}>{t}</div>;
   return (
-    <Slide title="Завершуваність і продуктивність">
+    <Slide title="Завершуваність і породжуваність">
       <Card x={96} y={210} w={840} h={620} p={left}>
         {head(1, "Завершуваність")}
         {q("Чи завершується все обчислення як скінченний процес?")}
@@ -354,7 +355,7 @@ const S20: React.FC = () => {
         </div>
       </Card>
       <Card x={984} y={210} w={840} h={620} p={s(2, 0, POP)}>
-        {head(2, "Продуктивність")}
+        {head(2, "Породжуваність", "(англ. productivity)")}
         {q("Чи можна за скінченний час отримати потрібний скінченний префікс?")}
         <div style={{ position: "absolute", left: 40, top: 290 }}>
           <Chip size={40}>take 100 [1..]</Chip>
@@ -411,6 +412,6 @@ export const a6Slides: SlideDef[] = [
   { id: "generators", title: "repeat, cycle, iterate", steps: [30, 80, 90, 80, 55], C: S17 },
   { id: "lazy-pipeline", title: "Ліниві перетворення", steps: [55, 40, 175, 55], C: S18 },
   { id: "fibs", title: "Самопосилальна структура", steps: [55, 40, 200, 55], C: S19 },
-  { id: "productivity", title: "Завершуваність і продуктивність", steps: [30, 70, 110, 55], C: S20 },
+  { id: "productivity", title: "Завершуваність і породжуваність", steps: [30, 70, 110, 55], C: S20 },
 ];
 export const summarySlide: SlideDef = { id: "summary", title: "Підсумок", steps: [100], C: S21 };
