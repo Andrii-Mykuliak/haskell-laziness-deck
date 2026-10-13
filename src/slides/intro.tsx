@@ -48,189 +48,121 @@ const TitleSlide: React.FC = () => {
   );
 };
 
-/* Epigraph: Hughes's own example. A generator and a selector are separate modules; laziness glues them,
-   the selector demands values one at a time and the generator stops when the selector is satisfied. */
-const APPROX = (() => {
-  const out = [1];
-  for (let i = 0; i < 4; i++) out.push((out[i] + 2 / out[i]) / 2);
+/* Epigraph: Hughes's game tree. The generator describes an infinite tree; the evaluator demands nodes one by one,
+   and only the demanded part is ever computed. Everything else stays a deferred computation. */
+type TNode = { id: string; d: number; x: number; y: number };
+const ROOT = { x: 1190, y: 420 };
+const ROW = 88;
+const SPREAD = [0, 256, 128, 64];
+const NODES: TNode[] = (() => {
+  const out: TNode[] = [];
+  const walk = (id: string, d: number, x: number) => {
+    out.push({ id, d, x, y: ROOT.y + d * ROW });
+    if (d < 3) {
+      walk(id + "0", d + 1, x - SPREAD[d + 1]);
+      walk(id + "1", d + 1, x + SPREAD[d + 1]);
+    }
+  };
+  walk("", 0, ROOT.x);
   return out;
 })();
-const SHOWN = ["1", "1.5", "1.4166667", "1.4142157", "1.4142136"];
-const DIFFS = ["", "0.5", "0.0833333", "0.0024510", "0.0000021"];
-const PACE = 2;
-const DEMAND_AT = (k: number) => 30 + k * 36 * PACE;
-const PULSE = 12 * PACE;
-const TRAVEL = 18 * PACE;
-const ARRIVE = (k: number) => DEMAND_AT(k) + PULSE + TRAVEL;
-const STOP_AT = ARRIVE(APPROX.length - 1) + 4 * PACE;
+const BY_ID: Record<string, TNode> = Object.fromEntries(NODES.map((n) => [n.id, n]));
+const FORCE_ORDER = ["", "0", "00", "000", "001", "01", "010", "1", "10", "100"];
+const FORCE_AT: Record<string, number> = Object.fromEntries(FORCE_ORDER.map((id, i) => [id, 44 + i * 24]));
+const APPEAR_AT = (n: TNode) => (n.id === "" ? 34 : FORCE_AT[n.id.slice(0, -1)] !== undefined ? FORCE_AT[n.id.slice(0, -1)] + 8 : Infinity);
+const STOP_AT = FORCE_AT["100"] + 34;
 
-const BOX = { y: 430, h: 236, w: 560 };
-const GEN_X = 112;
-const SEL_X = 1920 - 112 - BOX.w;
-const PIPE = { x0: GEN_X + BOX.w + 20, x1: SEL_X - 20, y: BOX.y + BOX.h / 2 };
-
-const ModuleBox: React.FC<{ x: number; p: number; color: string; glow?: number; children: React.ReactNode }> = ({ x, p, color, glow = 0, children }) => (
-  <div
-    style={{
-      position: "absolute",
-      left: x,
-      top: BOX.y,
-      width: BOX.w,
-      height: BOX.h,
-      borderRadius: 18,
-      background: C.panel,
-      border: `3px solid ${color}`,
-      boxSizing: "border-box",
-      padding: "26px 32px",
-      opacity: Math.min(1, p),
-      transform: `translateY(${(1 - p) * 24}px)`,
-      boxShadow: glow > 0.02 ? `0 0 ${34 * glow}px ${color}` : undefined,
-    }}
-  >
-    {children}
-  </div>
-);
-
-const ModuleLabel: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => (
-  <div style={{ fontFamily: F.body, fontWeight: 800, fontSize: 30, color, letterSpacing: 1 }}>{children}</div>
-);
-
-const ModuleCode: React.FC<{ size?: number; color?: string; children: React.ReactNode }> = ({ size = 40, color = C.mint, children }) => (
-  <div style={{ marginTop: 14, fontFamily: F.mono, fontWeight: 700, fontSize: size, color, whiteSpace: "pre", fontVariantLigatures: "none" }}>
-    {children}
-  </div>
-);
-
-const GeneratorSelector: React.FC = () => {
+const GameTree: React.FC = () => {
   const { s, lin, t } = useSteps();
   const f = t(0);
-  const done = f >= STOP_AT;
-  const arrived = APPROX.map((_, k) => f >= ARRIVE(k)).lastIndexOf(true);
-  const genGlow = APPROX.reduce((g, _, k) => Math.max(g, lin(0, DEMAND_AT(k) + PULSE - 2 * PACE, 4 * PACE) * (1 - lin(0, DEMAND_AT(k) + PULSE + 6 * PACE, 8 * PACE))), 0);
-  const selGlow = done ? s(0, STOP_AT) * (1 - 0.6 * s(0, STOP_AT + 20 * PACE)) : 0;
-  const pipe = s(0, 14);
-  const tokenW = (k: number) => SHOWN[k].length * 18 + 36;
-  const status = done ? `≤ 0.001  →  ${SHOWN[4]}` : arrived < 0 ? "чекає значень" : arrived === 0 ? `a = ${SHOWN[0]}` : `|a - b| = ${DIFFS[arrived]}`;
+  const r = (n: TNode) => (n.d === 3 ? 18 : 22);
+  const shown = NODES.filter((n) => f >= APPEAR_AT(n));
   return (
     <>
-      <ModuleBox x={GEN_X} p={s(0, 2, POP)} color={done ? C.line : C.lav} glow={genGlow}>
-        <ModuleLabel color={C.lav}>генератор</ModuleLabel>
-        <ModuleCode>{"iterate (next 2) 1"}</ModuleCode>
-        <ModuleCode size={26} color={C.dim}>
-          {"next n x = (x + n / x) / 2"}
-        </ModuleCode>
-      </ModuleBox>
-      <ModuleBox x={SEL_X} p={s(0, 8, POP)} color={done ? C.mint : C.amber} glow={selGlow}>
-        <ModuleLabel color={done ? C.mint : C.amber}>селектор</ModuleLabel>
-        <ModuleCode>{"within 0.001"}</ModuleCode>
-        <ModuleCode size={30} color={done ? C.mint : C.amber}>
-          {status}
-        </ModuleCode>
-      </ModuleBox>
-
+      <At x={110} y={432} w={560} step={0} delay={36} size={28} weight={600} color={C.lav}>
+        генератор описує нескінченне дерево
+      </At>
+      <At x={110} y={486} w={560} step={0} delay={58} size={28} weight={600} color={C.amber}>
+        оцінювач вимагає лише потрібні вузли
+      </At>
+      <At x={110} y={576} w={560} step={0} delay={STOP_AT - 10} size={28} weight={600} color={C.mint}>
+        обчислено {FORCE_ORDER.length} вузлів, решта – відкладені обчислення
+      </At>
       <svg width={1920} height={1080} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-        <line x1={PIPE.x0} y1={PIPE.y - 34} x2={PIPE.x0 + (PIPE.x1 - PIPE.x0) * pipe} y2={PIPE.y - 34} stroke={C.line} strokeWidth={3} />
-        <line x1={PIPE.x0} y1={PIPE.y + 34} x2={PIPE.x0 + (PIPE.x1 - PIPE.x0) * pipe} y2={PIPE.y + 34} stroke={C.line} strokeWidth={3} />
-        {APPROX.map((_, k) => {
-          const p = lin(0, DEMAND_AT(k), PULSE);
-          if (p <= 0 || p >= 1) return null;
-          const x = PIPE.x1 - (PIPE.x1 - PIPE.x0) * p;
-          return <circle key={k} cx={x} cy={PIPE.y} r={12} fill={C.amber} style={{ filter: "drop-shadow(0 0 8px rgba(242,193,125,0.9))" }} />;
+        {shown
+          .filter((n) => n.id !== "")
+          .map((n) => {
+            const parent = BY_ID[n.id.slice(0, -1)];
+            const k = lin(0, APPEAR_AT(n), 10);
+            const forced = FORCE_AT[n.id] !== undefined ? lin(0, FORCE_AT[n.id] - 2, 8) : 0;
+            const dx = n.x - parent.x;
+            const dy = n.y - parent.y;
+            const len = Math.hypot(dx, dy);
+            const x1 = parent.x + (dx / len) * r(parent);
+            const y1 = parent.y + (dy / len) * r(parent);
+            const x2 = parent.x + (dx / len) * (len - r(n));
+            const y2 = parent.y + (dy / len) * (len - r(n));
+            return (
+              <g key={`e${n.id}`}>
+                <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * k} y2={y1 + (y2 - y1) * k} stroke={C.dim} strokeWidth={2.2} strokeDasharray="6 7" opacity={0.7} />
+                {forced > 0 && <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * forced} y2={y1 + (y2 - y1) * forced} stroke={C.mint} strokeWidth={3} />}
+              </g>
+            );
+          })}
+        {shown
+          .filter((n) => n.d === 3)
+          .map((n) => {
+            const k = lin(0, APPEAR_AT(n) + 6, 14);
+            return [-1, 1].map((sx) => (
+              <line
+                key={`s${n.id}${sx}`}
+                x1={n.x + sx * 8}
+                y1={n.y + r(n) + 2}
+                x2={n.x + sx * (8 + 14 * k)}
+                y2={n.y + r(n) + 2 + 26 * k}
+                stroke={C.dim}
+                strokeWidth={2}
+                strokeDasharray="3 5"
+                opacity={0.75 * (1 - 0.3 * k)}
+              />
+            ));
+          })}
+        {FORCE_ORDER.filter((id) => id !== "").map((id) => {
+          const n = BY_ID[id];
+          const parent = BY_ID[id.slice(0, -1)];
+          const p = lin(0, FORCE_AT[id] - 12, 10);
+          if (p <= 0 || p >= 1) {
+            return null;
+          }
+          return (
+            <circle
+              key={`d${id}`}
+              cx={parent.x + (n.x - parent.x) * p}
+              cy={parent.y + (n.y - parent.y) * p}
+              r={7}
+              fill={C.amber}
+              style={{ filter: "drop-shadow(0 0 8px rgba(242,193,125,0.9))" }}
+            />
+          );
+        })}
+        {shown.map((n) => {
+          const appear = s(0, APPEAR_AT(n), POP);
+          const at = FORCE_AT[n.id];
+          const forced = at === undefined ? 0 : s(0, at);
+          const flash = at === undefined ? 0 : lin(0, at, 16);
+          return (
+            <g key={n.id} opacity={Math.min(1, appear)} transform={`translate(${n.x} ${n.y}) scale(${0.6 + 0.4 * Math.min(1, appear)})`}>
+              {flash > 0 && flash < 1 && <circle r={r(n) + 18 * flash} fill="none" stroke={C.mint} strokeWidth={3} opacity={1 - flash} />}
+              <circle r={r(n)} fill={`rgba(134,224,168,${0.2 * forced})`} stroke={C.dim} strokeWidth={2.5} strokeDasharray="5 5" opacity={0.85 * (1 - forced)} />
+              <circle r={r(n)} fill="none" stroke={C.mint} strokeWidth={3} opacity={forced} />
+              <text y={7} textAnchor="middle" fontFamily={F.mono} fontWeight={700} fontSize={n.d === 3 ? 19 : 22} fill={C.dim} opacity={1 - forced}>
+                ?
+              </text>
+              <circle r={6 * forced} fill={C.mint} />
+            </g>
+          );
         })}
       </svg>
-
-      {APPROX.map((_, k) => {
-        const p = lin(0, DEMAND_AT(k) + PULSE, TRAVEL);
-        if (p <= 0) return null;
-        const w = tokenW(k);
-        const eased = 1 - Math.pow(1 - p, 3);
-        const x = PIPE.x0 + 8 + (PIPE.x1 - PIPE.x0 - w - 16) * eased;
-        const fade = 1 - lin(0, ARRIVE(k) + 2 * PACE, 8 * PACE);
-        return (
-          <div
-            key={k}
-            style={{
-              position: "absolute",
-              left: x,
-              top: PIPE.y - 26,
-              width: w,
-              height: 52,
-              borderRadius: 26,
-              border: `3px solid ${C.mint}`,
-              background: "rgba(134,224,168,0.16)",
-              color: C.mint,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: F.mono,
-              fontWeight: 700,
-              fontSize: 30,
-              boxSizing: "border-box",
-              opacity: Math.min(1, p * 4) * fade,
-            }}
-          >
-            {SHOWN[k]}
-          </div>
-        );
-      })}
-
-      <div
-        style={{
-          position: "absolute",
-          left: PIPE.x0 + 8,
-          top: PIPE.y - 26,
-          width: 90,
-          height: 52,
-          borderRadius: 26,
-          border: `3px dashed ${C.faint}`,
-          color: C.faint,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: F.mono,
-          fontWeight: 700,
-          fontSize: 30,
-          boxSizing: "border-box",
-          opacity: s(0, STOP_AT + 10 * PACE),
-        }}
-      >
-        ?
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: PIPE.x0,
-          width: PIPE.x1 - PIPE.x0,
-          top: PIPE.y - 84,
-          textAlign: "center",
-          fontFamily: F.body,
-          fontSize: 27,
-          color: done ? C.text : C.dim,
-          opacity: pipe,
-        }}
-      >
-        {done ? "решта послідовності не обчислюється" : "лінивий потік: значення лише на запит"}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: PIPE.x0,
-          width: PIPE.x1 - PIPE.x0,
-          top: PIPE.y + 48,
-          textAlign: "center",
-          fontFamily: F.mono,
-          fontWeight: 600,
-          fontSize: 24,
-          whiteSpace: "pre",
-          fontVariantLigatures: "none",
-          opacity: s(0, 20),
-        }}
-      >
-        <span style={{ color: C.amber }}>within 0.001</span>
-        <span style={{ color: C.dim }}>{" ("}</span>
-        <span style={{ color: C.lav }}>iterate (next 2) 1</span>
-        <span style={{ color: C.dim }}>)</span>
-      </div>
     </>
   );
 };
@@ -248,7 +180,7 @@ const QuoteSlide: React.FC = () => {
     });
   return (
     <Slide>
-        <GeneratorSelector />
+        <GameTree />
         <div style={{ position: "absolute", left: 110, top: 110, width: 1700, fontFamily: F.head, fontWeight: 800, fontSize: 66, lineHeight: 1.22, color: C.text }}>
           <div>
             {words("Lazy evaluation", 8, C.accentHi)}
