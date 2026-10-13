@@ -168,13 +168,16 @@ const QuoteSlide: React.FC = () => {
   return (
     <Slide>
         <Lanterns />
-        <div style={{ position: "absolute", left: 110, top: 110, width: 1700, fontFamily: F.head, fontWeight: 800, fontSize: 66, lineHeight: 1.22, color: C.text }}>
+        <div style={{ position: "absolute", left: 110, top: 150, width: 1700, fontFamily: F.head, fontWeight: 800, fontSize: 70, lineHeight: 1.22, color: C.text }}>
           <div>
-            {words("Lazy evaluation", 8, C.accentHi)}
-            {words("is perhaps the most powerful", 18)}
+            {words("Once we were committed to a", 8)}
+            {words("lazy language,", 38, C.accentHi)}
           </div>
-          <div>{words("tool for modularization in the functional", 44)}</div>
-          <div>{words("programmer’s repertoire.", 74)}</div>
+          <div>
+            {words("a", 56)}
+            {words("pure", 60, C.mint)}
+            {words("one was inescapable.", 66)}
+          </div>
         </div>
         <div
           style={{
@@ -188,13 +191,13 @@ const QuoteSlide: React.FC = () => {
           }}
         />
         <At x={110} y={750} w={1700} step={1} delay={6} size={44} weight={600} color={C.text}>
-          Ліниві обчислення – мабуть, найпотужніший інструмент модуляризації в арсеналі функційного програміста.
+          Щойно ми обрали ліниву мову, вона неминуче мала стати чистою.
         </At>
-        <At x={110} y={900} step={1} delay={24} size={34} weight={400} color={C.dim} font={F.mono}>
-          John Hughes
+        <At x={110} y={836} step={1} delay={24} size={34} weight={400} color={C.dim} font={F.mono}>
+          Hudak, Hughes, Peyton Jones, Wadler
         </At>
-        <At x={110} y={950} w={1600} step={1} delay={36} size={30} weight={400} color={C.dim}>
-          «Why Functional Programming Matters», 1989
+        <At x={110} y={886} w={1600} step={1} delay={36} size={30} weight={400} color={C.dim}>
+          «A History of Haskell: Being Lazy with Class», 2007
         </At>
     </Slide>
   );
