@@ -48,121 +48,108 @@ const TitleSlide: React.FC = () => {
   );
 };
 
-/* Epigraph: Hughes's game tree. The generator describes an infinite tree; the evaluator demands nodes one by one,
-   and only the demanded part is ever computed. Everything else stays a deferred computation. */
-type TNode = { id: string; d: number; x: number; y: number };
-const ROOT = { x: 1190, y: 420 };
-const ROW = 88;
-const SPREAD = [0, 256, 128, 64];
-const NODES: TNode[] = (() => {
-  const out: TNode[] = [];
-  const walk = (id: string, d: number, x: number) => {
-    out.push({ id, d, x, y: ROOT.y + d * ROW });
-    if (d < 3) {
-      walk(id + "0", d + 1, x - SPREAD[d + 1]);
-      walk(id + "1", d + 1, x + SPREAD[d + 1]);
-    }
-  };
-  walk("", 0, ROOT.x);
-  return out;
-})();
-const BY_ID: Record<string, TNode> = Object.fromEntries(NODES.map((n) => [n.id, n]));
-const FORCE_ORDER = ["", "0", "00", "000", "001", "01", "010", "1", "10", "100"];
-const FORCE_AT: Record<string, number> = Object.fromEntries(FORCE_ORDER.map((id, i) => [id, 44 + i * 24]));
-const APPEAR_AT = (n: TNode) => (n.id === "" ? 34 : FORCE_AT[n.id.slice(0, -1)] !== undefined ? FORCE_AT[n.id.slice(0, -1)] + 8 : Infinity);
-const STOP_AT = FORCE_AT["100"] + 34;
+/* Epigraph: an infinite row of lanterns running to the horizon is the list map (^2) [1..];
+   take 5 lights only the first five, the rest stay dark all the way to the horizon. */
+const VP = { x: 300, y: 470 };
+const FRONT = { x: 1690, y: 690 };
+const LANTERNS = 40;
+const depth = (i: number) => 1 / (1 + 0.42 * i);
+const lanternAt = (i: number) => {
+  const k = depth(i);
+  return { x: VP.x + (FRONT.x - VP.x) * k, y: VP.y + (FRONT.y - VP.y) * k, sc: k };
+};
+const TAKEN = 5;
+const LIGHT_AT = (i: number) => 100 + i * 28;
+const STOP_AT = LIGHT_AT(TAKEN - 1) + 60;
 
-const GameTree: React.FC = () => {
-  const { s, lin, t } = useSteps();
-  const f = t(0);
-  const r = (n: TNode) => (n.d === 3 ? 18 : 22);
-  const shown = NODES.filter((n) => f >= APPEAR_AT(n));
+const Lanterns: React.FC = () => {
+  const { s, lin } = useSteps();
+  const road = lin(0, 10, 40);
+  const far = lanternAt(LANTERNS - 1);
+  const result = s(0, LIGHT_AT(TAKEN - 1) + 26);
   return (
     <>
-      <At x={110} y={432} w={560} step={0} delay={36} size={28} weight={600} color={C.lav}>
-        генератор описує нескінченне дерево
-      </At>
-      <At x={110} y={486} w={560} step={0} delay={58} size={28} weight={600} color={C.amber}>
-        оцінювач вимагає лише потрібні вузли
-      </At>
-      <At x={110} y={576} w={560} step={0} delay={STOP_AT - 10} size={28} weight={600} color={C.mint}>
-        обчислено {FORCE_ORDER.length} вузлів, решта – відкладені обчислення
-      </At>
       <svg width={1920} height={1080} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-        {shown
-          .filter((n) => n.id !== "")
-          .map((n) => {
-            const parent = BY_ID[n.id.slice(0, -1)];
-            const k = lin(0, APPEAR_AT(n), 10);
-            const forced = FORCE_AT[n.id] !== undefined ? lin(0, FORCE_AT[n.id] - 2, 8) : 0;
-            const dx = n.x - parent.x;
-            const dy = n.y - parent.y;
-            const len = Math.hypot(dx, dy);
-            const x1 = parent.x + (dx / len) * r(parent);
-            const y1 = parent.y + (dy / len) * r(parent);
-            const x2 = parent.x + (dx / len) * (len - r(n));
-            const y2 = parent.y + (dy / len) * (len - r(n));
-            return (
-              <g key={`e${n.id}`}>
-                <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * k} y2={y1 + (y2 - y1) * k} stroke={C.dim} strokeWidth={2.2} strokeDasharray="6 7" opacity={0.7} />
-                {forced > 0 && <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * forced} y2={y1 + (y2 - y1) * forced} stroke={C.mint} strokeWidth={3} />}
-              </g>
-            );
-          })}
-        {shown
-          .filter((n) => n.d === 3)
-          .map((n) => {
-            const k = lin(0, APPEAR_AT(n) + 6, 14);
-            return [-1, 1].map((sx) => (
-              <line
-                key={`s${n.id}${sx}`}
-                x1={n.x + sx * 8}
-                y1={n.y + r(n) + 2}
-                x2={n.x + sx * (8 + 14 * k)}
-                y2={n.y + r(n) + 2 + 26 * k}
-                stroke={C.dim}
-                strokeWidth={2}
-                strokeDasharray="3 5"
-                opacity={0.75 * (1 - 0.3 * k)}
+        <defs>
+          <radialGradient id="lampGlow">
+            <stop offset="0" stopColor="#ffe3a6" stopOpacity="0.9" />
+            <stop offset="0.35" stopColor={C.amber} stopOpacity="0.35" />
+            <stop offset="1" stopColor={C.amber} stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="poolGlow">
+            <stop offset="0" stopColor={C.amber} stopOpacity="0.35" />
+            <stop offset="1" stopColor={C.amber} stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="horizon" x1="0" x2="1">
+            <stop offset="0" stopColor={C.line} stopOpacity="0" />
+            <stop offset="0.25" stopColor={C.line} stopOpacity="0.8" />
+            <stop offset="1" stopColor={C.line} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1={120} y1={VP.y} x2={120 + 1700 * road} y2={VP.y} stroke="url(#horizon)" strokeWidth={2} />
+        <line x1={FRONT.x + 40} y1={FRONT.y + 18} x2={FRONT.x + 40 + (VP.x - FRONT.x - 40) * road} y2={FRONT.y + 18 + (VP.y - FRONT.y - 18) * road} stroke={C.line} strokeWidth={2} />
+        <line x1={FRONT.x - 120} y1={FRONT.y + 30} x2={FRONT.x - 120 + (VP.x - FRONT.x + 120) * road} y2={FRONT.y + 30 + (VP.y - FRONT.y - 30) * road} stroke={C.line} strokeWidth={1.5} strokeDasharray="10 12" opacity={0.7} />
+        {Array.from({ length: LANTERNS }, (_, j) => LANTERNS - 1 - j).map((i) => {
+          const { x, y, sc } = lanternAt(i);
+          const appear = s(0, 20 + i * 1.8);
+          const lit = i < TAKEN ? s(0, LIGHT_AT(i)) : 0;
+          const ph = 190 * sc;
+          const lw = 26 * sc;
+          const lh = 34 * sc;
+          const top = y - ph;
+          return (
+            <g key={i} opacity={Math.min(1, appear) * (i < TAKEN ? 1 : 0.55 + 0.45 * sc)}>
+              {lit > 0 && <ellipse cx={x} cy={y + 4 * sc} rx={90 * sc} ry={16 * sc} fill="url(#poolGlow)" opacity={lit} />}
+              {lit > 0 && <circle cx={x} cy={top - lh / 2} r={95 * sc} fill="url(#lampGlow)" opacity={lit} />}
+              <line x1={x} y1={y} x2={x} y2={top} stroke={lit > 0.5 ? "#8a7a62" : C.faint} strokeWidth={Math.max(1, 4 * sc)} strokeLinecap="round" />
+              <path
+                d={`M ${x - lw / 2} ${top} L ${x - lw * 0.38} ${top - lh} L ${x + lw * 0.38} ${top - lh} L ${x + lw / 2} ${top} Z`}
+                fill={lit > 0 ? `rgba(255,214,140,${0.85 * lit})` : C.bg}
+                stroke={lit > 0.5 ? C.amber : C.faint}
+                strokeWidth={Math.max(1, 2.4 * sc)}
+                strokeLinejoin="round"
               />
-            ));
-          })}
-        {FORCE_ORDER.filter((id) => id !== "").map((id) => {
-          const n = BY_ID[id];
-          const parent = BY_ID[id.slice(0, -1)];
-          const p = lin(0, FORCE_AT[id] - 12, 10);
-          if (p <= 0 || p >= 1) {
-            return null;
-          }
-          return (
-            <circle
-              key={`d${id}`}
-              cx={parent.x + (n.x - parent.x) * p}
-              cy={parent.y + (n.y - parent.y) * p}
-              r={7}
-              fill={C.amber}
-              style={{ filter: "drop-shadow(0 0 8px rgba(242,193,125,0.9))" }}
-            />
-          );
-        })}
-        {shown.map((n) => {
-          const appear = s(0, APPEAR_AT(n), POP);
-          const at = FORCE_AT[n.id];
-          const forced = at === undefined ? 0 : s(0, at);
-          const flash = at === undefined ? 0 : lin(0, at, 16);
-          return (
-            <g key={n.id} opacity={Math.min(1, appear)} transform={`translate(${n.x} ${n.y}) scale(${0.6 + 0.4 * Math.min(1, appear)})`}>
-              {flash > 0 && flash < 1 && <circle r={r(n) + 18 * flash} fill="none" stroke={C.mint} strokeWidth={3} opacity={1 - flash} />}
-              <circle r={r(n)} fill={`rgba(134,224,168,${0.2 * forced})`} stroke={C.dim} strokeWidth={2.5} strokeDasharray="5 5" opacity={0.85 * (1 - forced)} />
-              <circle r={r(n)} fill="none" stroke={C.mint} strokeWidth={3} opacity={forced} />
-              <text y={7} textAnchor="middle" fontFamily={F.mono} fontWeight={700} fontSize={n.d === 3 ? 19 : 22} fill={C.dim} opacity={1 - forced}>
-                ?
-              </text>
-              <circle r={6 * forced} fill={C.mint} />
+              <path d={`M ${x - lw * 0.5} ${top - lh} L ${x} ${top - lh - 12 * sc} L ${x + lw * 0.5} ${top - lh} Z`} fill={lit > 0.5 ? "#8a7a62" : C.faint} />
+              {i < TAKEN && (
+                <text
+                  x={x}
+                  y={top - lh - 22 * sc}
+                  textAnchor="middle"
+                  fontFamily={F.mono}
+                  fontWeight={700}
+                  fontSize={Math.max(13, 38 * sc)}
+                  fill={C.amber}
+                  opacity={lit}
+                >
+                  {(i + 1) * (i + 1)}
+                </text>
+              )}
             </g>
           );
         })}
+        <circle cx={far.x - 30} cy={far.y - 4} r={2} fill={C.faint} opacity={road} />
       </svg>
+      <At x={110} y={592} step={0} delay={30} size={34} weight={600} color={C.text} font={F.mono} style={{ fontVariantLigatures: "none" }}>
+        <span style={{ color: C.amber }}>take 5</span> <span style={{ color: C.dim }}>(</span>
+        <span style={{ color: C.lav }}>map (^2) [1..]</span>
+        <span style={{ color: C.dim }}>)</span>
+      </At>
+      <div
+        style={{
+          position: "absolute",
+          left: 110,
+          top: 642,
+          fontFamily: F.mono,
+          fontWeight: 700,
+          fontSize: 30,
+          color: C.mint,
+          whiteSpace: "pre",
+          opacity: result,
+          transform: `translateY(${(1 - result) * 12}px)`,
+        }}
+      >
+        {"= [1, 4, 9, 16, 25]"}
+      </div>
     </>
   );
 };
@@ -180,7 +167,7 @@ const QuoteSlide: React.FC = () => {
     });
   return (
     <Slide>
-        <GameTree />
+        <Lanterns />
         <div style={{ position: "absolute", left: 110, top: 110, width: 1700, fontFamily: F.head, fontWeight: 800, fontSize: 66, lineHeight: 1.22, color: C.text }}>
           <div>
             {words("Lazy evaluation", 8, C.accentHi)}
